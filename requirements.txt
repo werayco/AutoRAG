@@ -1,0 +1,4 @@
+langchain
+langchain-ollama
+sentence-transformer
+faiss-cpu
