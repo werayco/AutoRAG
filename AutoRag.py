@@ -3,6 +3,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama.llms import OllamaLLM
 from langchain_ollama import ChatOllama
 from langchain.vectorstores import FAISS
+from typings import str
 from langchain.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
@@ -15,14 +16,16 @@ from langchain.output_parsers import (
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 class AutoRAG:
-    def __init__(self, path_to_doc, chunk_size: int, chunk_overlap: int,model):
+    def __init__(self, path_to_doc, chunk_size: int, chunk_overlap: int,model,temp):
         self.path_to_doc = path_to_doc
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.model = model
-        self.llm = ChatOllama(model=self.model, temperature=0.7)
+        self.temp = temp
+        self.llm = ChatOllama(model=self.model, temperature=self.temp)
 
-    def RAGProcess(self, input):
+    def RAGProcess(self, input) :
+        
         pdf = PyPDFLoader(self.path_to_doc)
         documents = pdf.load()
 
@@ -52,6 +55,8 @@ class AutoRAG:
         )
         query = retriever_qa.invoke({"input": input, "document": documents})
 
+        return {"response":query}
+
     def parser(self, country, gender, language, term):
         schemas = [
             ResponseSchema(
@@ -77,7 +82,7 @@ class AutoRAG:
                 ("system", "You are an AI assistant who specialies in healthcare"),
                 ("user", template),
             ],
-            input_variables=["disease"],
+            input_variables=["gender","country"],
             partial_variables={"format_instruction": format_instruction},
         )
         msg = pmpt.format_messages(gender=gender, country=country)
@@ -104,8 +109,8 @@ class AutoRAG:
 
         messg = pmp.format_messages(term=term, language=language)
         comma_response_llm = comma_parser.parse(self.llm(messg))
-        return (structured_parsed_op, comma_response_llm)
+        return {"StructuredOutputJson":structured_parsed_op, "ListOutput":comma_response_llm}
 
 
 if __name__ == "__main__":
-    autorag = AutoRAG(model="nemotron-mini",chunk_size=100, chunk_overlap=10,path_to_doc="your_path_file_path_goes_here.pdf")
+    autorag = AutoRAG(model="nemotron-mini",chunk_size=100, chunk_overlap=10,path_to_doc="your_path_file_path_goes_here.pdf",temp=0.7)
